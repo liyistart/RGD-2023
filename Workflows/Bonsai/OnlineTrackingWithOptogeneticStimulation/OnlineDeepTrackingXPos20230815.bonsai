@@ -1,0 +1,148 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<WorkflowBuilder Version="2.8.0"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xmlns:p1="clr-namespace:Bonsai.PointGrey;assembly=Bonsai.PointGrey"
+                 xmlns:cv="clr-namespace:Bonsai.Vision;assembly=Bonsai.Vision"
+                 xmlns:dlc="clr-namespace:Bonsai.DeepLabCut;assembly=Bonsai.DeepLabCut"
+                 xmlns:rx="clr-namespace:Bonsai.Reactive;assembly=Bonsai.Core"
+                 xmlns:io="clr-namespace:Bonsai.IO;assembly=Bonsai.System"
+                 xmlns:ipy="clr-namespace:Bonsai.Scripting.IronPython;assembly=Bonsai.Scripting.IronPython"
+                 xmlns:port="clr-namespace:Bonsai.IO.Ports;assembly=Bonsai.System"
+                 xmlns="https://bonsai-rx.org/2018/workflow">
+  <Workflow>
+    <Nodes>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="p1:FlyCapture">
+          <p1:Index>0</p1:Index>
+          <p1:ColorProcessing>Default</p1:ColorProcessing>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="MemberSelector">
+        <Selector>Image</Selector>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="cv:VideoWriter">
+          <cv:FileName>D:\WaterReachingOnlineControl\20230908\Side.avi</cv:FileName>
+          <cv:Suffix>FileCount</cv:Suffix>
+          <cv:Buffered>true</cv:Buffered>
+          <cv:Overwrite>false</cv:Overwrite>
+          <cv:FourCC>FMP4</cv:FourCC>
+          <cv:FrameRate>25</cv:FrameRate>
+          <cv:FrameSize>
+            <cv:Width>0</cv:Width>
+            <cv:Height>0</cv:Height>
+          </cv:FrameSize>
+          <cv:ResizeInterpolation>NearestNeighbor</cv:ResizeInterpolation>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="MemberSelector">
+        <Selector>Metadata.embeddedTimeStamp</Selector>
+      </Expression>
+      <Expression xsi:type="MemberSelector">
+        <Selector>Metadata.embeddedFrameCounter</Selector>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="p1:GpioPinState" />
+      </Expression>
+      <Expression xsi:type="MemberSelector">
+        <Selector>Val3</Selector>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="dlc:PredictPose">
+          <dlc:ModelFileName>Side_snapshot-1030000.pb</dlc:ModelFileName>
+          <dlc:PoseConfigFileName>Side_pose_cfg.yaml</dlc:PoseConfigFileName>
+          <dlc:MinConfidence>0.95</dlc:MinConfidence>
+          <dlc:ScaleFactor>1</dlc:ScaleFactor>
+          <dlc:ColorConversion>Gray2Bgr</dlc:ColorConversion>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="dlc:GetBodyPart">
+          <dlc:Name>leftfingerroot2</dlc:Name>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="MemberSelector">
+        <Selector>Position.X</Selector>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="rx:Zip" />
+      </Expression>
+      <Expression xsi:type="io:CsvWriter">
+        <io:FileName>D:\WaterReachingOnlineControl\20230908\CtrlInfo.csv</io:FileName>
+        <io:Append>false</io:Append>
+        <io:Overwrite>false</io:Overwrite>
+        <io:Suffix>FileCount</io:Suffix>
+        <io:IncludeHeader>false</io:IncludeHeader>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="dlc:GetBodyPart">
+          <dlc:Name>leftfingerroot1</dlc:Name>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="MemberSelector">
+        <Selector>Position.X</Selector>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="dlc:GetBodyPart">
+          <dlc:Name>leftfingerroot3</dlc:Name>
+        </Combinator>
+      </Expression>
+      <Expression xsi:type="MemberSelector">
+        <Selector>Position.X</Selector>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="rx:Zip" />
+      </Expression>
+      <Expression xsi:type="ipy:PythonTransform">
+        <ipy:Script>import math as m
+
+@returns(str)
+def process(value):
+    outStr = "d"
+    mVal = 0
+    kk = 0;    
+    for ii in [0, 1, 2]:
+      if ~m.isnan(value[ii]):
+          mVal = mVal+value[ii]
+          kk = kk +1;
+    mVal = mVal/kk
+    if mVal &lt;= 220 and mVal&gt;=100:
+      outStr = "s"
+    if mVal &gt; 220:
+      outStr = "n" 
+    return outStr</ipy:Script>
+      </Expression>
+      <Expression xsi:type="Combinator">
+        <Combinator xsi:type="port:SerialWriteLine">
+          <port:PortName>COM3</port:PortName>
+          <port:NewLine>\r\n</port:NewLine>
+        </Combinator>
+      </Expression>
+    </Nodes>
+    <Edges>
+      <Edge From="0" To="1" Label="Source1" />
+      <Edge From="0" To="3" Label="Source1" />
+      <Edge From="0" To="4" Label="Source1" />
+      <Edge From="0" To="5" Label="Source1" />
+      <Edge From="1" To="2" Label="Source1" />
+      <Edge From="1" To="7" Label="Source1" />
+      <Edge From="3" To="10" Label="Source1" />
+      <Edge From="4" To="10" Label="Source2" />
+      <Edge From="5" To="6" Label="Source1" />
+      <Edge From="6" To="10" Label="Source3" />
+      <Edge From="7" To="8" Label="Source1" />
+      <Edge From="7" To="12" Label="Source1" />
+      <Edge From="7" To="14" Label="Source1" />
+      <Edge From="8" To="9" Label="Source1" />
+      <Edge From="9" To="10" Label="Source4" />
+      <Edge From="9" To="16" Label="Source2" />
+      <Edge From="10" To="11" Label="Source1" />
+      <Edge From="12" To="13" Label="Source1" />
+      <Edge From="13" To="16" Label="Source1" />
+      <Edge From="14" To="15" Label="Source1" />
+      <Edge From="15" To="16" Label="Source3" />
+      <Edge From="16" To="17" Label="Source1" />
+      <Edge From="17" To="18" Label="Source1" />
+    </Edges>
+  </Workflow>
+</WorkflowBuilder>
